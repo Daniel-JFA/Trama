@@ -8,6 +8,9 @@ dist/
 .pytest_cache/
 *.db
 *.sqlite3
+*.parquet
+data/
+backend/data/
 
 # Node / Next.js
 node_modules/
