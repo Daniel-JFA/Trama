@@ -2,7 +2,7 @@
 export_sample.py — Exporta el grafo sintético a frontend/public/sample-graph.json
 
 Uso:
-  cd /home/djfa/Dev/projects/Propios/trama/backend
+  cd backend
   source .venv/bin/activate
   python scripts/export_sample.py
 """

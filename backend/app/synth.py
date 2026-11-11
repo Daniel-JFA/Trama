@@ -207,30 +207,54 @@ def generate_synthetic_graph() -> dict:
     # Calcular métricas
     metrics = compute_metrics(G)
 
-    # Construir lista de nodos
+    # Construir lista de nodos enriquecidos con análisis CIB forense
+    from .cib import analyze_cib_profile
+
     all_nodes = []
     for comm_nodes in nodes_by_comm.values():
         for n in comm_nodes:
             m = metrics.get(n["id"], {"influence": 0, "bridge": 0, "degree": 0})
+            cib_info = analyze_cib_profile(
+                handle=n["handle"],
+                act=n["act"],
+                posts=n["posts"],
+                followers=n["followers"],
+                comm_id=n["comm"],
+                node_id=n["id"],
+                G=G,
+            )
+            # Para cuentas orgánicas no sospechosas, conservar valores base
+            bot_val = n["bot"] if n["org"] or n["bot"] > cib_info["bot_score"] else cib_info["bot_score"]
             all_nodes.append({
                 "id": n["id"],
                 "handle": n["handle"],
                 "comm": n["comm"],
                 "org": n["org"],
-                "bot": n["bot"],
-                "auth": n["auth"],
+                "bot": bot_val,
+                "auth": max(0, 100 - bot_val),
                 "act": n["act"],
                 "followers": n["followers"],
                 "posts": n["posts"],
                 "degree": m["degree"],
                 "influence": m["influence"],
                 "bridge": m["bridge"],
+                "cib_reasons": cib_info["reasons"],
+                "breakdown": cib_info["breakdown"],
             })
 
     # Construir lista de aristas
     links = [{"source": u, "target": v} for u, v in G.edges()]
 
     total_interactions = len(links) * 3 + 200  # aproximado para la demo
+
+    # Generar eventos y clústeres forenses del Sprint 3 para la demo
+    coornet_events = generate_synthetic_coornet_events()
+    from .cib import detect_coornet_network
+    coornet_res = detect_coornet_network(coornet_events, time_window_seconds=45.0, min_co_shares=2, monte_carlo_iterations=50, seed=SEED)
+
+    copypasta_msgs = generate_synthetic_copypasta_messages()
+    from .nlp import detect_copypasta_clusters
+    copypasta_res = detect_copypasta_clusters(copypasta_msgs, jaccard_threshold=0.75, semantic_threshold=0.85, time_window_seconds=900)
 
     return {
         "meta": {
@@ -242,4 +266,71 @@ def generate_synthetic_graph() -> dict:
         "communities": COMMUNITIES,
         "nodes": all_nodes,
         "links": links,
+        "coornet_links": coornet_res.get("links", []),
+        "coornet_cliques": coornet_res.get("coordinated_cliques", []),
+        "copypasta_clusters": copypasta_res.get("clusters", []),
     }
+
+
+def generate_synthetic_coornet_events() -> list[dict]:
+    """Genera serie de eventos de co-compartición sincrónica para el caso demo #ReformaDelAgua."""
+    # Handles amplificadores coordinados clave (Comunidad 3)
+    bots = [
+        "InfoLibre8006", "DataHoy4762", "OpinionReal5253", "DataHoy2363",
+        "Verdad4063", "CronicaReal9852", "AlertaYa2146", "CentinelaCo1144",
+        "LibertadInfo7106", "TruthNow3187", "Verdad8850", "CentinelaCo3128"
+    ]
+    entities = [
+        "https://verdadcolombia.info/apoyo-agro-urgente",
+        "https://noticiasya.com/campana-por-el-agro",
+        "https://datoslibres.org/comunicado-reforma",
+        "#AgroFuturoAvanza",
+    ]
+
+    events = []
+    base_t = 1718000000.0  # Base timestamp semana 6
+
+    # Campañas coordinadas: ráfagas sincronizadas en Delta_t <= 35s
+    for ent_idx, ent in enumerate(entities):
+        t_camp = base_t + ent_idx * 14400.0  # cada 4 horas
+        for i, b in enumerate(bots):
+            # Intervalo entre bots de 2 a 5 segundos
+            t_event = t_camp + (i * 2.8)
+            events.append({
+                "handle": b,
+                "entity_id": ent,
+                "timestamp": round(t_event, 2),
+            })
+
+    # Cuentas orgánicas para control negativo (comparten con horas o días de diferencia)
+    organic_handles = ["ElFaroDigital", "RadioCivica", "GuardianesDelRio", "AguaEsVida"]
+    for i, h in enumerate(organic_handles):
+        events.append({
+            "handle": h,
+            "entity_id": "https://verdadcolombia.info/apoyo-agro-urgente",
+            "timestamp": base_t + 50000.0 + (i * 7200.0),
+        })
+
+    return events
+
+
+def generate_synthetic_copypasta_messages() -> list[dict]:
+    """Genera corpus sintético de mensajes con variaciones de paráfrasis para el caso demo."""
+    msgs = [
+        # Clúster 1: Apoyo urgente gremio soberanía
+        {"id": "m_c1_1", "handle": "InfoLibre8006", "text": "¡Urgente colombianos! Apoyemos masivamente a @AgroFuturoCol para impulsar la soberanía agropecuaria nacional #ReformaDelAgua", "timestamp": 1718000100.0},
+        {"id": "m_c1_2", "handle": "DataHoy4762", "text": "Urgente colombianos: Apoyemos masivamente a @AgroFuturoCol para impulsar la soberania agropecuaria del pais #ReformaDelAgua", "timestamp": 1718000140.0},
+        {"id": "m_c1_3", "handle": "Verdad4063", "text": "Atencion colombianos, apoyemos con fuerza a @AgroFuturoCol para defender la soberania del campo #ReformaDelAgua", "timestamp": 1718000210.0},
+        {"id": "m_c1_4", "handle": "OpinionReal5253", "text": "Alerta colombianos, apoyemos a @AgroFuturoCol para garantizar la soberania agropecuaria en el congreso #ReformaDelAgua", "timestamp": 1718000260.0},
+
+        # Clúster 2: Inversión y empleo rural
+        {"id": "m_c2_1", "handle": "CronicaReal9852", "text": "La reforma del agua traerá inversión histórica y empleo rural según informe técnico gremial #AgroFuturoAvanza", "timestamp": 1718014500.0},
+        {"id": "m_c2_2", "handle": "AlertaYa2146", "text": "La reforma hidrica traera gran inversion y empleo para el campo confirma informe gremial #AgroFuturoAvanza", "timestamp": 1718014580.0},
+        {"id": "m_c2_3", "handle": "CentinelaCo1144", "text": "Reforma del agua generara empleo e inversiones rurales confirma el nuevo estudio oficial #AgroFuturoAvanza", "timestamp": 1718014690.0},
+
+        # Mensajes de control orgánicos (no coordinados, temas diversos)
+        {"id": "m_org_1", "handle": "ElFaroDigital", "text": "Publicamos nuestra investigación especial sobre las concesiones de cuencas hídricas en Santander", "timestamp": 1718050000.0},
+        {"id": "m_org_2", "handle": "GuardianesDelRio", "text": "Convocamos al plantón pacífico en defensa de los páramos este sábado a las 10am en la plaza mayor", "timestamp": 1718060000.0},
+        {"id": "m_org_3", "handle": "CarlosSalcedo", "text": "Disfrutando del fin de semana con la familia en la represa del Sisga, excelente clima", "timestamp": 1718070000.0},
+    ]
+    return msgs

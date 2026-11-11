@@ -101,22 +101,29 @@ trama/
 
 ---
 
-## Roadmap
+## Roadmap y Estado de Sprints
 
-### Fase 2
+> Para ver el detalle técnico completo de historias de usuario, arquitectura, criterios de aceptación y tareas de ingeniería, consulta el documento maestro:  
+> 📋 **[PLAN_DE_TRABAJO.md](PLAN_DE_TRABAJO.md)**
 
-- [ ] Subida de CSV directamente desde la interfaz (drag & drop)
-- [ ] Proyectos persistentes: guardar múltiples investigaciones (evaluar Neo4j para el almacenamiento del grafo)
-- [ ] Score de autenticidad con señales temporales reales (varianza horaria, ratio retweet/original, velocidad de crecimiento)
-- [ ] Ingesta de X API v2 (Academic/Pro access): búsqueda por hashtag o conversación
-- [ ] Comparación temporal del grafo: ver cómo evolucionó la red entre dos periodos
+### Estado Actual (v0.2.0 — Completado)
 
-### Fase 3
+- [x] Subida e importación de CSV directamente desde la interfaz
+- [x] Persistencia de investigaciones y proyectos múltiples (SQLite)
+- [x] Detección forense CIB (análisis temporal de ráfagas, entropía y topología)
+- [x] Visualizador temporal evolutivo (Time-Travel de 12 semanas)
+- [x] Módulo War Room político (Echo Chamber Index, aliados puente y rutas de expansión)
+- [x] Exportador de grafo a Gephi (GEXF) y reporte analítico ejecutivo
+- [x] Landing page comercial (`/landing`) con captura de leads
 
-- [ ] Embed interactivo para artículos de prensa (iframe con grafo público de solo lectura)
-- [ ] Reporte PDF para agencias: resumen ejecutivo, comunidades, top influyentes, señales de bot
-- [ ] Rastreo de narrativas entre comunidades: análisis de qué mensajes cruzan las cuentas puente
-- [ ] Dashboard de monitoreo continuo (cola de trabajos, alertas por umbral de bot o pico de actividad)
+### Próximos Sprints de Desarrollo
+
+* **Sprint 1 (Semanas 1-2):** Estabilidad, eliminación de estado global, aceleración 20x con `python-igraph`, indexación Quadtree en Canvas y sanitización de CSV.
+* **Sprint 2 (Semanas 3-4):** Tareas asíncronas (Arq + Redis), streaming SSE de progreso y persistencia en PostgreSQL 16 con Alembic.
+* **Sprint 3 (Semanas 5-6):** Inteligencia forense avanzada (NLP embeddings MiniLM, redes de co-difusión CooRnet y polarización RWC).
+* **Sprint 4 (Semanas 7-8):** Física desacoplada en Web Worker, modo 100% offline con Graphology y generación de reportes PDF profesionales.
+* **Sprint 5 (Semanas 9-10):** Ingesta multicanal en vivo (Bluesky Jetstream, Telegram, X API v2) y motor analítico columnar DuckDB + Parquet.
+* **Sprint 6 (Semanas 11-12):** Motor WebGL masivo (Sigma.js v3 para >100.000 nodos), arquitectura SaaS multi-tenant con RBAC y suite E2E con Playwright.
 
 ---
 
