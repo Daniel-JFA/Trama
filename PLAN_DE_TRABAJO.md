@@ -1,18 +1,18 @@
-# Plan Maestro de Trabajo e Ingeniería — TRAMA v0.3.0 ➔ v1.0.0 Enterprise
+# Plan Maestro de Trabajo e Ingeniería — TRAMA v0.5.0 ➔ v1.0.0 Enterprise
 
 > **Documento:** Plan de Trabajo, Sprints y Hoja de Ruta Técnica  
 > **Sistema:** TRAMA (Inteligencia de Redes Sociales, Análisis Forense CIB y War Room Electoral)  
-> **Línea Base Actual:** v0.3.0 (Sprints 1 y 2 completados al 100%, 31 tests pasando)  
+> **Línea Base Actual:** v0.5.0 (Sprints 1 a 5 fusionados en `main`; 56 tests pasando, 3 de PDF omitidos por falta de WeasyPrint)  
 > **Meta Final:** v1.0.0 Enterprise (WebGL >100k nodos, Firehose 24/7 en tiempo real, NLP semántico y SaaS Multi-Tenant)  
 > **Duración Total:** 12 Semanas (6 Sprints de 2 semanas)
 
 ---
 
-## 1. Estado de Avance y Línea Base Verificada (v0.3.0)
+## 1. Estado de Avance y Línea Base Verificada (v0.5.0)
 
 ```mermaid
 flowchart LR
-    subgraph V030 [LÍNEA BASE ACTUAL v0.3.0 - COMPLETADA]
+    subgraph V030 [LÍNEA BASE ACTUAL v0.5.0 - COMPLETADA]
         direction TB
         A[S1: igraph en C + Leiden] --> B[S1: Quadtree d3-force O log N]
         B --> C[S1: Desacoplamiento X-Project-Id]
@@ -72,11 +72,14 @@ flowchart LR
 │ Sprint 2 │ Streaming SSE, Asincronía y SQLAlchemy   │ ✅ COMPLETADO    │
 │ Sprint 3 │ Inteligencia Forense NLP, LSH y CooRnet  │ ✅ COMPLETADO    │
 ├──────────┼──────────────────────────────────────────┼──────────────────┤
-│ Sprint 4 │ Física en Web Worker, Offline y PDF      │ 🟡 SIGUIENTE     │
-│ Sprint 5 │ Firehose Streaming 24/7 y DuckDB Columnar│ ⚪ PLANIFICADO   │
-│ Sprint 6 │ Motor WebGL Masivo (>100k) & SaaS RBAC   │ ⚪ PLANIFICADO   │
+│ Sprint 4 │ Física en Web Worker, Offline y PDF      │ ✅ FUSIONADO (*) │
+│ Sprint 5 │ Firehose Streaming 24/7 y DuckDB Columnar│ ✅ FUSIONADO (*) │
+│ Sprint 6 │ Motor WebGL Masivo (>100k) & SaaS RBAC   │ 🟡 SIGUIENTE     │
 └──────────┴──────────────────────────────────────────┴──────────────────┘
 ```
+
+(*) Fusionado en `main` (PR #1 frontend, #2 PDF, #3 ingesta) pero **con verificación parcial**; ver sección 6.
+
 
 ---
 
@@ -188,7 +191,7 @@ flowchart LR
 
 ```
 ┌───────────────────────────────────────┬───────────────────┬───────────────────┬───────────────────┐
-│ DIMENSIÓN                             │ LÍNEA BASE v0.3.0 │ META SPRINT 4     │ META FINAL v1.0   │
+│ DIMENSIÓN                             │ LÍNEA BASE v0.5.0 │ META SPRINT 4     │ META FINAL v1.0   │
 ├───────────────────────────────────────┼───────────────────┼───────────────────┼───────────────────┤
 │ Escala Máxima Soportada               │ ~5.000 nodos      │ ~25.000 nodos     │ >100.000 nodos    │
 │ Tasa de Refresco Visual (FPS)         │ 60 FPS (<2k)      │ 60 FPS (<15k)     │ 60 FPS constantes │
@@ -202,10 +205,24 @@ flowchart LR
 
 ---
 
-## 5. Próxima Acción Inmediata: Arranque del Sprint 3
+## 5. Próxima Acción Inmediata: Arranque del Sprint 6
 
-Para comenzar la ejecución inmediata del **Sprint 3 (Días 1 a 14)**:
-1. Instalar dependencias de NLP en el backend: `pip install datasketch sentence-transformers scikit-learn`.
-2. Crear el módulo [`backend/app/nlp.py`](file:///home/djfa/Dev/projects/SDL/trama/backend/app/nlp.py) con funciones para MinHash, LSH y similitud semántica.
-3. Crear el generador de grafos de co-compartición CooRnet en [`backend/app/cib.py`](file:///home/djfa/Dev/projects/SDL/trama/backend/app/cib.py).
-4. Crear la suite de pruebas automatizadas en [`backend/tests/test_nlp.py`](file:///home/djfa/Dev/projects/SDL/trama/backend/tests/test_nlp.py).
+1. **Antes de empezar:** instalar WeasyPrint (con `pango` y `cairo` del sistema) y ejecutar `pytest backend/tests/test_reports.py` para verificar de verdad el PDF (Sprint 4).
+2. Sigma.js v3 (WebGL) con LOD semántico, manteniendo Canvas 2D para grafos pequeños; probar con 100k nodos / 300k aristas.
+3. Autenticación JWT, RBAC (Admin, Lead Investigator, Analyst, Viewer), organizaciones, RLS en PostgreSQL, TOTP 2FA, con tests de aislamiento entre organizaciones.
+4. CI: añadir `ruff`, `eslint`, `pip-audit`, `trivy`, build de imágenes Docker y E2E con Playwright (proyecto → CIB → PDF).
+
+---
+
+## 6. Registro de Verificación (estado real al cierre)
+
+| Sprint | Entregado | Verificado | Pendiente / no verificado |
+|---|---|---|---|
+| 3 | `nlp.py` (MinHash/LSH + MiniLM con fallback), CooRnet con Monte Carlo, clústeres textuales y capa CooRnet | 8 tests nuevos en verde | Con `sentence-transformers` real solo se probó la ruta con mock/fallback |
+| 4 (frontend) | `graph.worker.js`, modo offline (Graphology + Dexie + PapaParse), `ThresholdFilters.jsx` | `npm run build` compila; test `offlineAnalysis.test.js` incluido | **60 FPS y modo avión no medidos en navegador**; no se abrió la interfaz |
+| 4 (PDF) | Informe PDF con WeasyPrint y botón en `ReportModal.jsx` | Sin verificar: 3 tests omitidos (`skipif`) | **El PDF nunca se generó de verdad**; falta WeasyPrint en los venv |
+| 5 | `InteractionEvent` + migración Alembic, conectores Bluesky/Telegram/X, DuckDB + Parquet, `benchmark_duckdb.py` | Tests de conectores con fixtures, sin red | **Benchmark de 2M de eventos (<300 ms) y conexión real a Bluesky no ejecutados en esta revisión** |
+
+**Totales:** 56 tests pasan, 3 omitidos; un solo head de Alembic (`e2df3eeb0964`); build de Next.js sin errores.
+
+**Notas de entorno:** el repositorio vive en `/home/djfa/Dev/projects/SDL/trama` (antes `Propios/trama`). El puerto 3000 local lo ocupa otro servicio; el frontend de desarrollo se levantó en el 3001 (CORS ya lo permite).
