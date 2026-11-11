@@ -200,3 +200,10 @@ class RWCResponseOut(BaseModel):
     p_comm2_stay: float
     diagnosis: str
 
+
+# ─── Bloque C: Informes PDF ──────────────────────────────────────────────────
+
+class PdfReportPayload(BaseModel):
+    svg: Optional[str] = None
+
+
