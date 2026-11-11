@@ -74,7 +74,8 @@ flowchart LR
 ├──────────┼──────────────────────────────────────────┼──────────────────┤
 │ Sprint 4 │ Física en Web Worker, Offline y PDF      │ ✅ FUSIONADO (*) │
 │ Sprint 5 │ Firehose Streaming 24/7 y DuckDB Columnar│ ✅ FUSIONADO (*) │
-│ Sprint 6 │ Motor WebGL Masivo (>100k) & SaaS RBAC   │ 🟡 SIGUIENTE     │
+│ Sprint 5.5│ Seguimiento de creadores y nichos       │ 🟡 SIGUIENTE     │
+│ Sprint 6 │ Motor WebGL Masivo (>100k) & SaaS RBAC   │ ⚪ PENDIENTE     │
 └──────────┴──────────────────────────────────────────┴──────────────────┘
 ```
 
@@ -161,6 +162,55 @@ flowchart LR
 
 ---
 
+### Sprint 5.5: Seguimiento de Creadores, Crecimiento y Nichos (Instagram, Facebook, YouTube)
+**Objetivo:** Seguir el crecimiento de cuentas en Instagram, Facebook y YouTube, y detectar los nichos y lo que más se mueve dentro de cada uno.
+
+> Plan de ejecución detallado (sub-sprints, carriles por agente, contrato de API y datos): [`docs/PLAN_SPRINT_5_5_EJECUCION.md`](docs/PLAN_SPRINT_5_5_EJECUCION.md)
+
+**Punto de partida (verificado en código):** hoy solo hay conectores para Bluesky, Telegram y X. Instagram y Facebook se cubren con scripts de conversión manual (`scripts/instagram_to_csv.py`, `scripts/social_multichannel_to_csv.py`); YouTube no existe. `User.followers` guarda un único valor, sin historial. No hay etiquetado de temas ni series temporales por tema.
+
+**Alcance de acceso a datos (decisión de producto):**
+
+| Nivel | Fuente | Alcance | Fase |
+|---|---|---|---|
+| 1. Cuentas propias o autorizadas | Instagram Graph API, Facebook Pages API, YouTube Data/Analytics API (OAuth) | Seguidores, alcance, interacciones, demografía, publicaciones, comentarios | A |
+| 2. Cuentas públicas de terceros | Instagram Business Discovery (solo cuentas profesionales, datos limitados), YouTube Data API | Métricas públicas básicas | A/B |
+| 3. Datos masivos | Proveedor de datos de pago o Meta Content Library (solo investigación no comercial) | Búsqueda amplia, tendencias, hashtags | C (requiere decisión comercial y revisión legal) |
+| 4. Acceso interno tipo Meta | No existe para terceros | — | Descartado |
+
+* **Duración:** Semanas 11 y 12 (Sprint 6 se desplaza a las semanas 13 y 14)
+* **Paquetes Requeridos:** `google-api-python-client`, `httpx`, `apscheduler`
+
+#### Fase A: Cuentas propias y crecimiento
+1. **[Backend / Modelo] Instantáneas históricas:**
+   - Tabla `AccountSnapshot` (cuenta, plataforma, fecha, seguidores, publicaciones, vistas, interacción) con migración Alembic.
+   - Cron de recolección periódica (`apscheduler`) con registro de ejecuciones y reintentos.
+2. **[Backend / Conectores] Interfaz `DataProvider`:**
+   - Contrato común (`fetch_account`, `fetch_posts`, `fetch_comments`) para enchufar fuentes sin tocar el resto del sistema.
+   - Almacenamiento seguro de tokens OAuth (cifrados en reposo) y control de cuotas.
+3. **[Backend / Conectores] YouTube:** canales, videos, comentarios, suscriptores y vistas vía Data API v3. Es la primera fuente verificable de extremo a extremo.
+4. **[Backend / Conectores] Instagram y Facebook:** OAuth con Graph API para cuentas propias o administradas, más Business Discovery para cuentas profesionales públicas. Requiere App Review de Meta.
+5. **[Frontend] Panel de crecimiento:** seguidores en el tiempo, tasa de crecimiento, mejores publicaciones y comparación entre cuentas.
+
+#### Fase B: Nichos y tendencias
+1. **[Backend / NLP] Etiquetado de temas por comunidad:** hashtags y términos dominantes por comunidad Leiden, reutilizando `nlp.py`.
+2. **[Backend / DuckDB] Series temporales por tema y hashtag:** volumen por ventana y ranking de aceleración (qué crece más rápido).
+3. **[Backend / Grafo] Descubrimiento del nicho:** a partir de una cuenta semilla, expandir cuentas relacionadas (menciones, colaboraciones, audiencia compartida) y construir el nicho.
+4. **[Frontend] Panel de nichos:** mapa de nichos, temas en ascenso y cuentas líderes de cada uno.
+
+#### Fase C: Ampliación de cobertura (condicionada a decisión comercial)
+- Evaluar un proveedor de datos externo implementando `DataProvider`, con revisión legal previa (términos de uso de cada plataforma y ley de protección de datos personales). No se inicia sin aprobación expresa.
+
+* **Criterio de Aceptación (DoD):**
+  - [ ] Conexión real a YouTube con una clave API: un canal con al menos 7 días de instantáneas y gráfica de crecimiento.
+  - [ ] Instagram y Facebook conectados a una cuenta propia mediante OAuth (sujeto a aprobación de Meta).
+  - [ ] Dado un canal semilla, el sistema produce un nicho con temas etiquetados y ranking de tendencias.
+  - [ ] Tests con fixtures de las tres APIs, y ningún token o dato personal en logs ni en el repositorio.
+
+**Prerrequisitos del equipo:** app en Meta for Developers; proyecto en Google Cloud con YouTube Data API activada; decidir si habrá cuentas de terceros (define la Fase C).
+
+---
+
 ### Sprint 6: Motor WebGL Masivo (>100k nodos), RBAC Multi-Tenant y Certificación
 **Objetivo:** Escalar la visualización a más de 100.000 nodos y convertir TRAMA en una plataforma SaaS multi-inquilino lista para despliegues gubernamentales y corporativos.
 
@@ -205,7 +255,11 @@ flowchart LR
 
 ---
 
-## 5. Próxima Acción Inmediata: Arranque del Sprint 6
+## 5. Próxima Acción Inmediata: Sprint 5.5 y luego Sprint 6
+
+**Sprint 5.5 (primero):** crear credenciales de YouTube y Meta, modelo `AccountSnapshot` + cron, conector de YouTube y panel de crecimiento (ver sección del Sprint 5.5).
+
+**Sprint 6:**
 
 1. **Antes de empezar:** instalar WeasyPrint (con `pango` y `cairo` del sistema) y ejecutar `pytest backend/tests/test_reports.py` para verificar de verdad el PDF (Sprint 4).
 2. Sigma.js v3 (WebGL) con LOD semántico, manteniendo Canvas 2D para grafos pequeños; probar con 100k nodos / 300k aristas.
