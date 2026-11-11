@@ -23,6 +23,9 @@ def setup_test_database(tmp_path_factory):
     test_dir = tmp_path_factory.mktemp("trama_test")
     test_db_file = test_dir / "test_trama.db"
     os.environ["TRAMA_DB_PATH"] = str(test_db_file)
+    os.environ.setdefault("TRAMA_TOKEN_KEY", generate_token_key())
+    os.environ.setdefault("META_APP_ID", "dummy_meta_app_id_for_testing")
+    os.environ.setdefault("META_APP_SECRET", "dummy_meta_app_secret_for_testing")
     init_db()
     yield
 

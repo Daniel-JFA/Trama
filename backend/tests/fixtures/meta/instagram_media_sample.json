@@ -1,0 +1,26 @@
+{
+  "data": [
+    {
+      "id": "17923456789012345",
+      "caption": "Nuevo informe sobre patrones de actividad coordinada en redes sociales. #OSINT #TRAMA #DataScience",
+      "media_type": "IMAGE",
+      "timestamp": "2026-11-04T16:00:00+0000",
+      "like_count": 850,
+      "comments_count": 92
+    },
+    {
+      "id": "17923456789012346",
+      "caption": "Análisis de comunidades electorales mediante el algoritmo Leiden en C. #Leiden #FastAPI",
+      "media_type": "CAROUSEL_ALBUM",
+      "timestamp": "2026-11-08T18:30:00+0000",
+      "like_count": 1420,
+      "comments_count": 145
+    }
+  ],
+  "paging": {
+    "cursors": {
+      "before": "QVFIUk5...",
+      "after": "QVFIUlJ..."
+    }
+  }
+}

@@ -46,13 +46,15 @@ def test_skeleton_routes_return_expected_status():
     r_get_accounts = client.get("/accounts", headers=headers)
     assert r_get_accounts.status_code == 200
 
-    # Carril D, E, F: esqueletos pendientes de sub-sprints siguientes
+    # Carril D: /oauth implementado
     r_oauth_start = client.get("/oauth/meta/start", headers=headers)
-    assert r_oauth_start.status_code == 501
+    assert r_oauth_start.status_code == 200
+    assert "authorization_url" in r_oauth_start.json()
 
     r_oauth_callback = client.get("/oauth/meta/callback?code=test&state=abc")
-    assert r_oauth_callback.status_code == 501
+    assert r_oauth_callback.status_code == 403  # State inválido rechazado anti-CSRF
 
+    # Carril E, F: esqueletos pendientes de sub-sprint 5.5.2
     r_trends = client.get("/trends", headers=headers)
     assert r_trends.status_code == 501
 

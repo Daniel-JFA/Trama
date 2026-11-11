@@ -1,0 +1,12 @@
+{
+  "error": {
+    "message": "(#17) User request limit reached",
+    "type": "OAuthException",
+    "code": 17,
+    "error_subcode": 2446079,
+    "is_transient": true,
+    "error_user_title": "Límite de llamadas alcanzado",
+    "error_user_msg": "Has realizado demasiadas solicitudes en un corto período de tiempo.",
+    "fbtrace_id": "Fx9876543210"
+  }
+}
