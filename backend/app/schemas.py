@@ -201,6 +201,11 @@ class RWCResponseOut(BaseModel):
     diagnosis: str
 
 
+# ─── Bloque C: Informes PDF ──────────────────────────────────────────────────
+
+class PdfReportPayload(BaseModel):
+    svg: Optional[str] = None
+
 # ─── Bloque D: Modelo Canónico de Eventos de Interacción e Ingesta ──────────
 
 class InteractionEvent(BaseModel):

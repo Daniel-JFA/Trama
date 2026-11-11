@@ -11,6 +11,52 @@ export default function ReportModal({
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    if (!activeProjectId) return;
+    setDownloadingPdf(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      // Intenta capturar el SVG del lienzo de grafo si está presente en el DOM
+      const svgEl = document.querySelector("svg");
+      const svgString = svgEl ? new XMLSerializer().serializeToString(svgEl) : null;
+
+      const queryParam =
+        candidateId !== undefined && candidateId !== null
+          ? `?candidate_id=${candidateId}`
+          : "";
+      const res = await fetch(
+        `${apiUrl}/api/projects/${activeProjectId}/report/pdf${queryParam}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ svg: svgString }),
+        }
+      );
+
+      if (!res.ok) {
+        if (res.status === 501) {
+          throw new Error("El motor WeasyPrint no está disponible en el servidor.");
+        }
+        throw new Error(`Error ${res.status} al generar el PDF`);
+      }
+
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `informe-forense-${activeProjectId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      alert("Error al descargar PDF: " + err.message);
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   useEffect(() => {
     if (isOpen && activeProjectId) {
@@ -236,10 +282,18 @@ export default function ReportModal({
         </div>
 
         <div className="modal-footer report-footer">
-          <button className="btn-secondary" onClick={() => window.print()}>
-            🖨️ Imprimir / Guardar PDF
+          <button
+            className="btn-primary"
+            style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+            onClick={handleDownloadPdf}
+            disabled={downloadingPdf}
+          >
+            {downloadingPdf ? "Generando PDF…" : "📥 Descargar PDF Oficial"}
           </button>
-          <button className="btn-primary" onClick={onClose}>
+          <button className="btn-secondary" onClick={() => window.print()}>
+            🖨️ Imprimir / Vista Previa
+          </button>
+          <button className="btn-secondary" onClick={onClose}>
             Cerrar Informe
           </button>
         </div>
