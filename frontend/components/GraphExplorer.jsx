@@ -13,7 +13,10 @@ import WarRoomPanel from "./panels/WarRoomPanel";
 import ProjectsModal from "./ProjectsModal";
 import ReportModal from "./ReportModal";
 import TaskProgressModal from "./TaskProgressModal";
+import ThresholdFilters from "./ThresholdFilters";
 import { exportGraphToSVG, downloadSVG } from "../lib/exportSvg";
+import { analyzeCsvOffline } from "../lib/offlineAnalysis";
+import { saveOfflineProject } from "../lib/db";
 
 export default function GraphExplorer() {
   const canvasComponentRef = useRef(null);
@@ -34,6 +37,45 @@ export default function GraphExplorer() {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [currentWeek, setCurrentWeek] = useState(null);
   const [showCoornetLayer, setShowCoornetLayer] = useState(false);
+
+  // Estados de Filtros Multicriterio y Modo Offline (Sprint 4 / Bloque B)
+  const [thresholdFilters, setThresholdFilters] = useState({
+    minInfluence: 0,
+    maxBot: 100,
+    activeCommunities: [],
+  });
+  const [showThresholdSliders, setShowThresholdSliders] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [offlineNotice, setOfflineNotice] = useState(null);
+
+  // Handler de arrastrar y soltar CSV offline
+  const handleOfflineCsvDrop = useCallback(async (file) => {
+    if (!file || !file.name.toLowerCase().endsWith(".csv")) {
+      alert("Por favor arrastra un archivo en formato .csv para análisis local.");
+      return;
+    }
+    setLoading(true);
+    setImportError(null);
+    try {
+      const parsedGraph = await analyzeCsvOffline(file);
+      const offlineProj = {
+        id: `offline-${Date.now()}`,
+        name: file.name.replace(/\.csv$/i, ""),
+        topic: "Análisis Offline (CSV Local)",
+        graph: parsedGraph,
+      };
+      await saveOfflineProject(offlineProj);
+      setGraph(parsedGraph);
+      setDataSource("offline-indexeddb");
+      setActiveProjectId(offlineProj.id);
+      setOfflineNotice(`✓ Modo Offline: Dataset "${file.name}" analizado con Graphology (Louvain y PageRank) y guardado en IndexedDB.`);
+      setTimeout(() => setOfflineNotice(null), 8000);
+    } catch (err) {
+      setImportError(`Error en análisis offline: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   // Estados de streaming reactivo SSE (Sprint 2)
   const [taskProgress, setTaskProgress] = useState(0);
@@ -358,8 +400,26 @@ export default function GraphExplorer() {
 
       {/* Cuerpo principal */}
       <main className="main-content">
-        {/* Lienzo del grafo */}
-        <div className="graph-area">
+        {/* Lienzo del grafo con soporte Drag & Drop Offline */}
+        <div
+          className="graph-area"
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDragOver(true);
+          }}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget)) {
+              setIsDragOver(false);
+            }
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDragOver(false);
+            if (e.dataTransfer.files?.[0]) {
+              handleOfflineCsvDrop(e.dataTransfer.files[0]);
+            }
+          }}
+        >
           {loading && (
             <div className="loading-overlay">
               <div className="loading-spinner" />
@@ -367,10 +427,90 @@ export default function GraphExplorer() {
             </div>
           )}
 
+          {/* Overlay de Arrastrar CSV */}
+          {isDragOver && (
+            <div style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(10, 16, 29, 0.9)",
+              border: "2px dashed #3B82F6",
+              borderRadius: "12px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 50,
+              color: "#60A5FA",
+              pointerEvents: "none",
+            }}>
+              <span style={{ fontSize: "40px", marginBottom: "8px" }}>📂</span>
+              <span style={{ fontSize: "16px", fontWeight: "700" }}>Suelta tu archivo CSV para análisis offline</span>
+              <span style={{ fontSize: "12px", color: "#94a3b8", marginTop: "4px" }}>
+                Procesamiento local inmediato con Graphology (Louvain + PageRank) y Dexie / IndexedDB
+              </span>
+            </div>
+          )}
+
+          {/* Notificación de Modo Offline */}
+          {offlineNotice && (
+            <div style={{
+              position: "absolute",
+              top: "16px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              background: "#064e3b",
+              border: "1px solid #059669",
+              color: "#a7f3d0",
+              padding: "8px 16px",
+              borderRadius: "8px",
+              fontSize: "12px",
+              fontWeight: "600",
+              zIndex: 40,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+            }}>
+              {offlineNotice}
+            </div>
+          )}
+
+          {/* Selector flotante de Sliders de Umbral con Histogramas */}
+          <div style={{ position: "absolute", top: "14px", left: "14px", zIndex: 30, maxWidth: "440px" }}>
+            <button
+              onClick={() => setShowThresholdSliders((prev) => !prev)}
+              style={{
+                background: showThresholdSliders ? "#1e293b" : "rgba(15, 23, 42, 0.85)",
+                backdropFilter: "blur(8px)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                color: "#e2e8f0",
+                padding: "6px 12px",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontSize: "12px",
+                fontWeight: "600",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+              }}
+            >
+              <span>📊 Filtros Multicriterio</span>
+              <span style={{ fontSize: "10px", color: "#94a3b8" }}>{showThresholdSliders ? "▲" : "▼"}</span>
+            </button>
+
+            {showThresholdSliders && !loading && graph?.nodes && (
+              <ThresholdFilters
+                nodes={graph.nodes}
+                communities={communities}
+                filters={thresholdFilters}
+                onChange={setThresholdFilters}
+              />
+            )}
+          </div>
+
           <GraphCanvas
             ref={canvasComponentRef}
             graph={graph}
             activeFilter={activeFilter}
+            thresholdFilters={thresholdFilters}
             searchValue={searchValue}
             selectedNode={selectedNode}
             comparison={comparison}

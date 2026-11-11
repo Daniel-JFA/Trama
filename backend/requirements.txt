@@ -14,4 +14,8 @@ sentence-transformers>=3.0.0
 # Bloque C — Generación de informes PDF
 weasyprint>=60.0
 
+# Bloque D — Ingesta Streaming y Almacenamiento Columnar (DuckDB + Parquet)
+duckdb>=1.0.0
+pyarrow>=15.0.0
+
 

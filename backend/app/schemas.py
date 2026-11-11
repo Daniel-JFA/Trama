@@ -206,4 +206,30 @@ class RWCResponseOut(BaseModel):
 class PdfReportPayload(BaseModel):
     svg: Optional[str] = None
 
+# ─── Bloque D: Modelo Canónico de Eventos de Interacción e Ingesta ──────────
+
+class InteractionEvent(BaseModel):
+    id: Optional[str] = None
+    project_id: Optional[str] = None
+    actor: str
+    target: Optional[str] = None
+    timestamp: str
+    action_type: str
+    platform: str
+    content: Optional[str] = ""
+    extra: Optional[Dict[str, Any]] = None
+
+
+class BatchInteractionEventsPayload(BaseModel):
+    events: List[InteractionEvent]
+    project_id: Optional[str] = None
+
+
+class ColumnarQueryPayload(BaseModel):
+    project_id: Optional[str] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    window_minutes: Optional[int] = 15
+    limit: Optional[int] = 20
+
 
