@@ -7,6 +7,7 @@ const GraphCanvas = forwardRef(function GraphCanvas(
   {
     graph,
     activeFilter,
+    thresholdFilters = null,
     searchValue,
     selectedNode,
     comparison,
@@ -20,12 +21,13 @@ const GraphCanvas = forwardRef(function GraphCanvas(
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const simRef = useRef(null);
+  const workerRef = useRef(null);
   const zoomRef = useRef(null);
   const transformRef = useRef({ k: 1, x: 0, y: 0 });
   const hoveredRef = useRef(null);
   const selectedRef = useRef(null);
   const graphDataRef = useRef(null);
-  const filterRef = useRef({ community: null, onlySuspicious: false });
+  const filterRef = useRef({ community: null, onlySuspicious: false, minInfluence: 0, maxBot: 100, activeCommunities: [] });
   const searchRef = useRef("");
   const comparisonRef = useRef([]);
   const currentWeekRef = useRef(null);
@@ -86,8 +88,11 @@ const GraphCanvas = forwardRef(function GraphCanvas(
     filterRef.current = {
       community: activeFilter === "suspicious" ? null : activeFilter,
       onlySuspicious: activeFilter === "suspicious",
+      minInfluence: thresholdFilters?.minInfluence ?? 0,
+      maxBot: thresholdFilters?.maxBot ?? 100,
+      activeCommunities: thresholdFilters?.activeCommunities ?? [],
     };
-  }, [activeFilter]);
+  }, [activeFilter, thresholdFilters]);
 
   useEffect(() => {
     searchRef.current = searchValue;
@@ -132,6 +137,9 @@ const GraphCanvas = forwardRef(function GraphCanvas(
     function isVisible(n) {
       if (filter.onlySuspicious && n.bot < 60) return false;
       if (filter.community !== null && n.comm !== filter.community) return false;
+      if (filter.minInfluence != null && (n.influence || 0) < filter.minInfluence) return false;
+      if (filter.maxBot != null && (n.bot || 0) > filter.maxBot) return false;
+      if (filter.activeCommunities && filter.activeCommunities.length > 0 && !filter.activeCommunities.includes(n.comm)) return false;
       return true;
     }
 
@@ -544,43 +552,91 @@ const GraphCanvas = forwardRef(function GraphCanvas(
       }
     });
 
-    const sim = d3
-      .forceSimulation(graph.nodes)
-      .force(
-        "link",
-        d3
-          .forceLink(graph.links)
-          .id((d) => d.id)
-          .distance(42)
-          .strength(0.48)
-      )
-      .force("charge", d3.forceManyBody().strength(-60))
-      .force(
-        "collide",
-        d3.forceCollide().radius((d) => {
-          const maxInf = Math.max(...graph.nodes.map((n) => n.influence || 1), 1);
-          return 4 + Math.sqrt((d.influence || 1) / maxInf) * 14 + 4;
-        })
-      )
-      .force(
-        "x",
-        d3
-          .forceX((d) => (commCenters[d.comm]?.x || 0.5) * getW())
-          .strength(0.09)
-      )
-      .force(
-        "y",
-        d3
-          .forceY((d) => (commCenters[d.comm]?.y || 0.5) * getH())
-          .strength(0.09)
-      )
-      .alphaDecay(0.02)
-      .on("tick", () => {
-        updateQuadtree();
-        scheduleDraw();
-      });
+    // ─── Web Worker Force Simulation (Sprint 4 / Bloque B) ──────────────────
+    let worker = null;
+    let sim = null;
 
-    simRef.current = sim;
+    if (typeof window !== "undefined" && window.Worker) {
+      try {
+        worker = new Worker(new URL("../lib/graph.worker.js", import.meta.url));
+        workerRef.current = worker;
+
+        worker.onmessage = (e) => {
+          const { type, positions } = e.data;
+          if ((type === "TICK" || type === "END") && positions) {
+            const g = graphDataRef.current;
+            if (g && g.nodes) {
+              const count = Math.min(g.nodes.length, positions.length / 2);
+              for (let i = 0; i < count; i++) {
+                g.nodes[i].x = positions[i * 2];
+                g.nodes[i].y = positions[i * 2 + 1];
+              }
+              updateQuadtree();
+              scheduleDraw();
+            }
+          }
+        };
+
+        worker.postMessage({
+          type: "INIT",
+          payload: {
+            nodes: graph.nodes.map((n) => ({
+              id: n.id,
+              x: n.x,
+              y: n.y,
+              influence: n.influence,
+              fx: n.fx,
+              fy: n.fy,
+            })),
+            links: graph.links,
+            width: getW(),
+            height: getH(),
+          },
+        });
+      } catch (err) {
+        console.warn("Fallo al iniciar Web Worker, utilizando fallback inline:", err);
+      }
+    }
+
+    if (!worker) {
+      sim = d3
+        .forceSimulation(graph.nodes)
+        .force(
+          "link",
+          d3
+            .forceLink(graph.links)
+            .id((d) => d.id)
+            .distance(42)
+            .strength(0.48)
+        )
+        .force("charge", d3.forceManyBody().strength(-60))
+        .force(
+          "collide",
+          d3.forceCollide().radius((d) => {
+            const maxInf = Math.max(...graph.nodes.map((n) => n.influence || 1), 1);
+            return 4 + Math.sqrt((d.influence || 1) / maxInf) * 14 + 4;
+          })
+        )
+        .force(
+          "x",
+          d3
+            .forceX((d) => (commCenters[d.comm]?.x || 0.5) * getW())
+            .strength(0.09)
+        )
+        .force(
+          "y",
+          d3
+            .forceY((d) => (commCenters[d.comm]?.y || 0.5) * getH())
+            .strength(0.09)
+        )
+        .alphaDecay(0.02)
+        .on("tick", () => {
+          updateQuadtree();
+          scheduleDraw();
+        });
+
+      simRef.current = sim;
+    }
 
     const zoom = d3
       .zoom()
@@ -612,6 +668,9 @@ const GraphCanvas = forwardRef(function GraphCanvas(
         if (n.x == null || n.y == null) continue;
         if (filter.onlySuspicious && n.bot < 60) continue;
         if (filter.community !== null && n.comm !== filter.community) continue;
+        if (filter.minInfluence != null && (n.influence || 0) < filter.minInfluence) continue;
+        if (filter.maxBot != null && (n.bot || 0) > filter.maxBot) continue;
+        if (filter.activeCommunities && filter.activeCommunities.length > 0 && !filter.activeCommunities.includes(n.comm)) continue;
         validNodes.push(n);
       }
       quadtreeRef.current = d3
@@ -675,20 +734,42 @@ const GraphCanvas = forwardRef(function GraphCanvas(
       .on("start", (event) => {
         if (!event.subject) return;
         isDraggingRef.current = true;
-        if (!event.active) sim.alphaTarget(0.3).restart();
+        if (workerRef.current) {
+          workerRef.current.postMessage({
+            type: "DRAG_START",
+            payload: { id: event.subject.id, x: event.subject.x, y: event.subject.y }
+          });
+        } else if (simRef.current && !event.active) {
+          simRef.current.alphaTarget(0.3).restart();
+        }
         event.subject.fx = event.subject.x;
         event.subject.fy = event.subject.y;
       })
       .on("drag", (event) => {
         if (!event.subject) return;
         const { k, x, y } = transformRef.current;
-        event.subject.fx = (event.x - x) / k;
-        event.subject.fy = (event.y - y) / k;
+        const targetX = (event.x - x) / k;
+        const targetY = (event.y - y) / k;
+        event.subject.fx = targetX;
+        event.subject.fy = targetY;
+        if (workerRef.current) {
+          workerRef.current.postMessage({
+            type: "DRAG",
+            payload: { id: event.subject.id, x: targetX, y: targetY }
+          });
+        }
       })
       .on("end", (event) => {
         if (!event.subject) return;
         isDraggingRef.current = false;
-        if (!event.active) sim.alphaTarget(0);
+        if (workerRef.current) {
+          workerRef.current.postMessage({
+            type: "DRAG_END",
+            payload: { id: event.subject.id }
+          });
+        } else if (simRef.current && !event.active) {
+          simRef.current.alphaTarget(0);
+        }
         event.subject.fx = null;
         event.subject.fy = null;
       });
@@ -784,7 +865,14 @@ const GraphCanvas = forwardRef(function GraphCanvas(
     canvas.addEventListener("click", onClick);
 
     return () => {
-      sim.stop();
+      if (workerRef.current) {
+        workerRef.current.terminate();
+        workerRef.current = null;
+      }
+      if (simRef.current) {
+        simRef.current.stop();
+        simRef.current = null;
+      }
       ro.disconnect();
       canvas.removeEventListener("mousemove", onMove);
       canvas.removeEventListener("mouseleave", onLeave);

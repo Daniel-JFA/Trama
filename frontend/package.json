@@ -6,11 +6,17 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "node --test __tests__/*.test.js"
   },
   "dependencies": {
     "d3": "^7.9.0",
+    "dexie": "^4.4.7",
+    "graphology": "^0.26.0",
+    "graphology-communities-louvain": "^2.0.2",
+    "graphology-metrics": "^2.4.2",
     "next": "14.2.35",
+    "papaparse": "^5.7.0",
     "react": "^18",
     "react-dom": "^18"
   }
