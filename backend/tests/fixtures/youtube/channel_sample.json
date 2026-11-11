@@ -1,0 +1,32 @@
+{
+  "kind": "youtube#channelListResponse",
+  "etag": "sample_etag_12345",
+  "pageInfo": {
+    "totalResults": 1,
+    "resultsPerPage": 1
+  },
+  "items": [
+    {
+      "kind": "youtube#channel",
+      "etag": "channel_etag_67890",
+      "id": "UC_x5XG1OV2P6uZZ5FSM9Ttw",
+      "snippet": {
+        "title": "Google Developers",
+        "description": "The Google Developers channel features talks and demos.",
+        "customUrl": "@googledevelopers",
+        "publishedAt": "2007-08-23T00:34:43Z",
+        "thumbnails": {
+          "default": {
+            "url": "https://yt3.ggpht.com/default.jpg"
+          }
+        }
+      },
+      "statistics": {
+        "viewCount": "250000000",
+        "subscriberCount": "2350000",
+        "hiddenSubscriberCount": false,
+        "videoCount": "6200"
+      }
+    }
+  ]
+}

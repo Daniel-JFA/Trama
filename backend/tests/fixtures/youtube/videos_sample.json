@@ -1,0 +1,39 @@
+{
+  "kind": "youtube#searchListResponse",
+  "etag": "search_etag_112233",
+  "nextPageToken": "CAUQAA",
+  "pageInfo": {
+    "totalResults": 45,
+    "resultsPerPage": 2
+  },
+  "items": [
+    {
+      "kind": "youtube#searchResult",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "vid_sample_101"
+      },
+      "snippet": {
+        "publishedAt": "2026-11-01T12:00:00Z",
+        "channelId": "UC_x5XG1OV2P6uZZ5FSM9Ttw",
+        "title": "Intro to Graph Analysis in Python",
+        "description": "Learn network analysis with Python and igraph. #network #graph",
+        "channelTitle": "Google Developers"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "vid_sample_102"
+      },
+      "snippet": {
+        "publishedAt": "2026-11-05T15:30:00Z",
+        "channelId": "UC_x5XG1OV2P6uZZ5FSM9Ttw",
+        "title": "FastAPI and Columnar Analytics with DuckDB",
+        "description": "High performance queries over interaction data. #fastapi #duckdb",
+        "channelTitle": "Google Developers"
+      }
+    }
+  ]
+}

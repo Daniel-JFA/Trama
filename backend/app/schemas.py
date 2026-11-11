@@ -233,3 +233,84 @@ class ColumnarQueryPayload(BaseModel):
     limit: Optional[int] = 20
 
 
+# ─── Sprint 5.5: Seguimiento de Creadores, Crecimiento y Nichos ──────────────
+
+class CreateAccountPayload(BaseModel):
+    platform: str = Field(..., description="Plataforma: youtube | instagram | facebook")
+    external_id: str = Field(..., description="ID externo de la cuenta o canal")
+    handle: Optional[str] = Field(None, description="Handle o nombre de usuario")
+    display_name: Optional[str] = Field("", description="Nombre legible")
+    is_owned: bool = Field(False, description="True si es una cuenta propia del proyecto")
+
+
+class AccountOut(BaseModel):
+    id: int
+    project_id: str
+    platform: str
+    external_id: str
+    handle: str
+    display_name: str
+    is_owned: bool
+    created_at: str
+
+
+class AccountSnapshotOut(BaseModel):
+    id: int
+    account_id: int
+    taken_at: str
+    followers: int
+    following: int
+    posts_count: int
+    total_views: int
+    engagement_rate: Optional[float] = None
+    raw: Optional[Dict[str, Any]] = None
+
+
+class GrowthPoint(BaseModel):
+    date: str
+    followers: int
+    delta: int
+    growth_pct: float
+
+
+class GrowthSummary(BaseModel):
+    growth_7d: int = 0
+    growth_7d_pct: float = 0.0
+    growth_30d: int = 0
+    growth_30d_pct: float = 0.0
+    top_posts: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class AccountGrowthResponse(BaseModel):
+    account_id: int
+    series: List[GrowthPoint]
+    summary: GrowthSummary
+
+
+class DiscoverNichePayload(BaseModel):
+    seed_account_id: int = Field(..., description="ID de la cuenta semilla")
+    depth: int = Field(1, ge=1, le=2, description="Profundidad de expansión (máx 2)")
+
+
+class TrendItem(BaseModel):
+    topic: str
+    volume: int
+    acceleration: float
+    platform: Optional[str] = None
+    community_id: Optional[int] = None
+
+
+class TrendsResponse(BaseModel):
+    trends: List[TrendItem]
+    time_window: Dict[str, Any] = Field(default_factory=dict)
+
+
+class NicheResponse(BaseModel):
+    id: str
+    seed_account_id: int
+    accounts: List[Dict[str, Any]] = Field(default_factory=list)
+    tagged_topics: List[Dict[str, Any]] = Field(default_factory=list)
+    leaders: List[Dict[str, Any]] = Field(default_factory=list)
+    seed_position: Dict[str, Any] = Field(default_factory=dict)
+
+

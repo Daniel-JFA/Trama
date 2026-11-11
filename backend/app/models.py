@@ -3,6 +3,7 @@ models.py — Modelos ORM normalizados con SQLAlchemy para TRAMA.
 Soporta SQLite (desarrollo/local) y PostgreSQL (producción/enterprise con JSONB).
 """
 
+from datetime import datetime, timezone
 from sqlalchemy import (
     Column,
     String,
@@ -12,6 +13,10 @@ from sqlalchemy import (
     Text,
     ForeignKey,
     Index,
+    BigInteger,
+    DateTime,
+    JSON,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -36,6 +41,7 @@ class ProjectModel(Base):
     edges = relationship("EdgeModel", back_populates="project", cascade="all, delete-orphan")
     communities = relationship("CommunityModel", back_populates="project", cascade="all, delete-orphan")
     cib_evidence = relationship("CIBEvidenceModel", back_populates="project", cascade="all, delete-orphan")
+    accounts = relationship("Account", back_populates="project", cascade="all, delete-orphan")
 
 
 class NodeModel(Base):
@@ -159,4 +165,93 @@ class InteractionEventModel(Base):
         Index("idx_events_actor_target", "actor", "target"),
         Index("idx_events_platform_action", "platform", "action_type"),
     )
+
+
+# ─── Sprint 5.5: Seguimiento de Creadores, Crecimiento y Nichos ──────────────
+
+class Account(Base):
+    __tablename__ = "accounts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    project_id = Column(String(64), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    platform = Column(String(32), nullable=False, index=True)
+    external_id = Column(String(128), nullable=False, index=True)
+    handle = Column(String(128), nullable=False, index=True)
+    display_name = Column(String(128), nullable=False, default="")
+    is_owned = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    project = relationship("ProjectModel", back_populates="accounts")
+    snapshots = relationship("AccountSnapshot", back_populates="account", cascade="all, delete-orphan")
+    post_snapshots = relationship("PostSnapshot", back_populates="account", cascade="all, delete-orphan")
+    credentials = relationship("OAuthCredential", back_populates="account", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint("platform", "external_id", "project_id", name="uq_accounts_platform_ext_proj"),
+        Index("idx_accounts_proj_platform", "project_id", "platform"),
+    )
+
+
+class AccountSnapshot(Base):
+    __tablename__ = "account_snapshots"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    account_id = Column(Integer, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False, index=True)
+    taken_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+    followers = Column(Integer, default=0, nullable=False)
+    following = Column(Integer, default=0, nullable=False)
+    posts_count = Column(Integer, default=0, nullable=False)
+    total_views = Column(BigInteger, default=0, nullable=False)
+    engagement_rate = Column(Float, nullable=True)
+    raw = Column(JSON, default=dict)
+
+    account = relationship("Account", back_populates="snapshots")
+
+    __table_args__ = (
+        Index("idx_acc_snapshots_account_taken", "account_id", "taken_at"),
+    )
+
+
+class PostSnapshot(Base):
+    __tablename__ = "post_snapshots"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    account_id = Column(Integer, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False, index=True)
+    external_post_id = Column(String(128), nullable=False, index=True)
+    published_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    taken_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    views = Column(BigInteger, default=0, nullable=False)
+    likes = Column(Integer, default=0, nullable=False)
+    comments = Column(Integer, default=0, nullable=False)
+    shares = Column(Integer, default=0, nullable=False)
+    text = Column(Text, nullable=True)
+    hashtags = Column(JSON, default=list)
+
+    account = relationship("Account", back_populates="post_snapshots")
+
+    __table_args__ = (
+        Index("idx_post_snapshots_account_pub", "account_id", "published_at"),
+        Index("idx_post_snapshots_acc_ext", "account_id", "external_post_id"),
+    )
+
+
+class OAuthCredential(Base):
+    __tablename__ = "oauth_credentials"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    account_id = Column(Integer, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False, index=True)
+    provider = Column(String(32), nullable=False)
+    access_token_enc = Column(Text, nullable=False)
+    refresh_token_enc = Column(Text, nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    scopes = Column(Text, nullable=True)
+
+    account = relationship("Account", back_populates="credentials")
+
+
+# Aliases para compatibilidad de nomenclatura
+AccountModel = Account
+AccountSnapshotModel = AccountSnapshot
+PostSnapshotModel = PostSnapshot
+OAuthCredentialModel = OAuthCredential
 

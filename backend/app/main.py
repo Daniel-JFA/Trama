@@ -74,6 +74,8 @@ from .political import (
 )
 from .nlp import detect_copypasta_clusters
 from .cib import detect_coornet_network
+from .dependencies import get_current_project
+from .routers import growth_router, oauth_router, trends_router, niches_router
 
 app = FastAPI(
     title="TRAMA API",
@@ -98,47 +100,8 @@ app.add_middleware(
 )
 
 
-# ─── Inyección de Dependencias: Proyecto y Grafo Activo ──────────────────────
-def get_current_project(
-    project_id: Optional[str] = Query(None, description="ID del proyecto objetivo"),
-    x_project_id: Optional[str] = Header(None, alias="X-Project-Id", description="Cabecera con ID del proyecto"),
-) -> Dict[str, Any]:
-    """
-    Resuelve el proyecto de forma desacoplada y atómica para soportar concurrencia y escalabilidad horizontal.
-    Prioridad:
-    1. Query param 'project_id' explícito.
-    2. Cabecera 'X-Project-Id'.
-    3. Proyecto activo configurado en SQLite (fallback persistido).
-    """
-    target_id = project_id or x_project_id
-    if target_id:
-        proj = get_project(target_id)
-        if not proj:
-            raise HTTPException(status_code=404, detail=f"Proyecto '{target_id}' no encontrado.")
-        return proj
-
-    # Recuperar el proyecto activo persistido
-    active_id = get_active_project_id()
-    proj = get_project(active_id)
-    if proj:
-        return proj
-
-    # Fallback seguro a demo o primer proyecto registrado
-    demo = get_project("demo-reforma-del-agua")
-    if demo:
-        return demo
-
-    all_projs = list_projects()
-    if all_projs:
-        p = get_project(all_projs[0]["id"])
-        if p:
-            return p
-
-    # Si la base de datos no tuviese proyectos, crear el demo base
-    synth = generate_synthetic_graph()
-    created = create_project("Caso #ReformaDelAgua (Demo)", "#ReformaDelAgua", "Demo base", synth)
-    set_active_project_id(created["id"])
-    return created
+# ─── Inyección de Dependencias (importada desde .dependencies) ───────────────
+# get_current_project está disponible en el scope del módulo
 
 
 # ─── Helpers de Topología y Seguridad ────────────────────────────────────────
@@ -848,6 +811,13 @@ def query_analytics_top_actors(payload: ColumnarQueryPayload):
         "project_id": pid,
         "top_actors": results,
     }
+
+
+# ─── Routers Sprint 5.5: Crecimiento, OAuth, Tendencias y Nichos ─────────────
+app.include_router(growth_router)
+app.include_router(oauth_router)
+app.include_router(trends_router)
+app.include_router(niches_router)
 
 # ─────────────────────────────────────────────────────────────────────────────
 

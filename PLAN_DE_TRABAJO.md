@@ -274,9 +274,10 @@ flowchart LR
 |---|---|---|---|
 | 3 | `nlp.py` (MinHash/LSH + MiniLM con fallback), CooRnet con Monte Carlo, clústeres textuales y capa CooRnet | 8 tests nuevos en verde | Con `sentence-transformers` real solo se probó la ruta con mock/fallback |
 | 4 (frontend) | `graph.worker.js`, modo offline (Graphology + Dexie + PapaParse), `ThresholdFilters.jsx` | `npm run build` compila; test `offlineAnalysis.test.js` incluido | **60 FPS y modo avión no medidos en navegador**; no se abrió la interfaz |
-| 4 (PDF) | Informe PDF con WeasyPrint y botón en `ReportModal.jsx` | Sin verificar: 3 tests omitidos (`skipif`) | **El PDF nunca se generó de verdad**; falta WeasyPrint en los venv |
-| 5 | `InteractionEvent` + migración Alembic, conectores Bluesky/Telegram/X, DuckDB + Parquet, `benchmark_duckdb.py` | Tests de conectores con fixtures, sin red | **Benchmark de 2M de eventos (<300 ms) y conexión real a Bluesky no ejecutados en esta revisión** |
+| 4 (PDF) | Informe PDF con WeasyPrint y botón en `ReportModal.jsx` | **VERIFICADO (Sub-sprint 5.5.0)**: WeasyPrint 70.0 instalado, 5 tests pasando en `test_reports.py` (0 omitidos) | Validación visual en visor PDF externo |
+| 5 | `InteractionEvent` + migración Alembic, conectores Bluesky/Telegram/X, DuckDB + Parquet, `benchmark_duckdb.py` | Tests de conectores con fixtures, sin red. **Benchmark ejecutado**: agregación minuto 208 ms (<300 ms), rolling window 38.9 ms (<300 ms), top 20 actores 337 ms sobre 2M eventos | Conexión real a Bluesky (fuera de CI por ser sin credenciales) |
+| 5.5.0 | Cimientos: modelos `Account`, `AccountSnapshot`, `PostSnapshot`, `OAuthCredential`, migración `ae8e56481230`, protocolo `DataProvider`, routers con 501, cifrado `crypto.py`, fixtures | 16 tests nuevos en verde (72 tests backend totales pasando, 0 omitidos), un solo head Alembic | Conexión real con API Keys de YouTube/Meta (reservada para fases posteriores) |
 
-**Totales:** 56 tests pasan, 3 omitidos; un solo head de Alembic (`e2df3eeb0964`); build de Next.js sin errores.
+**Totales:** 72 tests pasan, 0 omitidos; un solo head de Alembic (`ae8e56481230`); build de Next.js sin errores.
 
 **Notas de entorno:** el repositorio vive en `/home/djfa/Dev/projects/SDL/trama` (antes `Propios/trama`). El puerto 3000 local lo ocupa otro servicio; el frontend de desarrollo se levantó en el 3001 (CORS ya lo permite).
