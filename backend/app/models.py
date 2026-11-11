@@ -137,3 +137,26 @@ class SettingModel(Base):
 
     key = Column(String(64), primary_key=True)
     value = Column(Text, nullable=False)
+
+
+# ─── Bloque D: Modelo Canónico de Eventos de Interacción ─────────────────────
+
+class InteractionEventModel(Base):
+    __tablename__ = "interaction_events"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    project_id = Column(String(64), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
+    actor = Column(String(128), nullable=False, index=True)
+    target = Column(String(128), nullable=True, index=True)
+    timestamp = Column(String(64), nullable=False, index=True)
+    action_type = Column(String(32), nullable=False, index=True)
+    platform = Column(String(32), nullable=False, index=True)
+    content = Column(Text, default="")
+    extra_json = Column(Text, default="{}")
+
+    __table_args__ = (
+        Index("idx_events_proj_ts", "project_id", "timestamp"),
+        Index("idx_events_actor_target", "actor", "target"),
+        Index("idx_events_platform_action", "platform", "action_type"),
+    )
+

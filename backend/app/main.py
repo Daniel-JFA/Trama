@@ -42,7 +42,11 @@ from .schemas import (
     CooRnetPayload,
     CooRnetResponseOut,
     RWCResponseOut,
+    InteractionEvent,
+    BatchInteractionEventsPayload,
+    ColumnarQueryPayload,
 )
+from .columnar import ColumnarAnalytics, save_events_to_parquet
 from .tasks import (
     enqueue_import_task,
     get_task_status,
@@ -728,4 +732,72 @@ def get_random_walk_controversy(
         comm2_id=comm2,
         num_walks=walks,
     )
+
+
+# ─── Bloque D: Ingesta Masiva Streaming y Analítica Columnar DuckDB ──────────
+
+@app.post("/api/ingest/events")
+def ingest_interaction_events(payload: BatchInteractionEventsPayload):
+    """Ingesta masiva de eventos canónicos con persistencia columnar en Parquet."""
+    if not payload.events:
+        return {"status": "ok", "ingested_count": 0}
+
+    count = save_events_to_parquet(payload.events, default_project_id=payload.project_id or "default")
+    return {
+        "status": "ok",
+        "ingested_count": count,
+        "project_id": payload.project_id or "default",
+    }
+
+
+@app.post("/api/analytics/minute")
+def query_analytics_by_minute(payload: ColumnarQueryPayload):
+    """Consulta agregada por minuto con DuckDB sobre Parquet particionado."""
+    pid = payload.project_id or "default"
+    analytics = ColumnarAnalytics()
+    results = analytics.aggregate_by_minute(
+        project_id=pid,
+        start_time=payload.start_time,
+        end_time=payload.end_time,
+    )
+    return {
+        "project_id": pid,
+        "buckets_count": len(results),
+        "data": results,
+    }
+
+
+@app.post("/api/analytics/rolling")
+def query_analytics_rolling(payload: ColumnarQueryPayload):
+    """Calcula ventanas móviles de volumen para detección de ráfagas con DuckDB."""
+    pid = payload.project_id or "default"
+    analytics = ColumnarAnalytics()
+    results = analytics.rolling_windows(
+        project_id=pid,
+        window_minutes=payload.window_minutes or 15,
+    )
+    return {
+        "project_id": pid,
+        "window_minutes": payload.window_minutes or 15,
+        "points_count": len(results),
+        "data": results,
+    }
+
+
+@app.post("/api/analytics/top-actors")
+def query_analytics_top_actors(payload: ColumnarQueryPayload):
+    """Ranking de actores y amplificación calculado sobre DuckDB."""
+    pid = payload.project_id or "default"
+    analytics = ColumnarAnalytics()
+    results = analytics.top_actors(
+        project_id=pid,
+        limit=payload.limit or 20,
+    )
+    return {
+        "project_id": pid,
+        "top_actors": results,
+    }
+
+# ─────────────────────────────────────────────────────────────────────────────
+
 
