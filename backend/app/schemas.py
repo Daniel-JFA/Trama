@@ -227,4 +227,9 @@ class ColumnarQueryPayload(BaseModel):
     window_minutes: Optional[int] = 15
     limit: Optional[int] = 20
 
+# ─── Bloque C: Informes PDF ──────────────────────────────────────────────────
+
+class PdfReportPayload(BaseModel):
+    svg: Optional[str] = None
+
 

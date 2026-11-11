@@ -22,7 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .synth import generate_synthetic_graph
 from .metrics import compute_metrics, bot_heuristic, compute_communities_leiden
 from .exporters import export_graph_to_gexf
-from .reports import generate_executive_report
+from .reports import generate_executive_report, generate_pdf_report, WeasyPrintUnavailableError
 from .schemas import (
     NodeOut,
     LinkOut,
@@ -45,6 +45,8 @@ from .schemas import (
     InteractionEvent,
     BatchInteractionEventsPayload,
     ColumnarQueryPayload,
+
+    PdfReportPayload,
 )
 from .columnar import ColumnarAnalytics, save_events_to_parquet
 from .tasks import (
@@ -249,6 +251,55 @@ def get_project_executive_report(project_id: str, candidate_id: Optional[int] = 
     if not project or "graph" not in project:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado.")
     return generate_executive_report(project, candidate_id=candidate_id)
+
+
+# ─── Bloque C: Endpoint de Informe PDF con WeasyPrint ────────────────────────
+
+@app.get("/api/projects/{project_id}/report/pdf")
+def get_project_pdf_report(project_id: str, candidate_id: Optional[int] = Query(None)):
+    """Genera y descarga el informe PDF ejecutivo vectorizado del proyecto."""
+    project = get_project(project_id)
+    if not project or "graph" not in project:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado.")
+    try:
+        pdf_bytes = generate_pdf_report(project, candidate_id=candidate_id)
+    except WeasyPrintUnavailableError as e:
+        raise HTTPException(status_code=501, detail=f"Motor WeasyPrint no disponible: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generando PDF: {e}")
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="informe-{project_id}.pdf"'},
+    )
+
+
+@app.post("/api/projects/{project_id}/report/pdf")
+def post_project_pdf_report(
+    project_id: str,
+    payload: Optional[PdfReportPayload] = None,
+    candidate_id: Optional[int] = Query(None)
+):
+    """Genera y descarga el informe PDF ejecutivo incorporando captura vectorial SVG enviada por el cliente."""
+    project = get_project(project_id)
+    if not project or "graph" not in project:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado.")
+    svg_data = payload.svg if payload else None
+    try:
+        pdf_bytes = generate_pdf_report(project, candidate_id=candidate_id, svg_content=svg_data)
+    except WeasyPrintUnavailableError as e:
+        raise HTTPException(status_code=501, detail=f"Motor WeasyPrint no disponible: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generando PDF: {e}")
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="informe-{project_id}.pdf"'},
+    )
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 # ─── Endpoints: Grafo y Análisis ─────────────────────────────────────────────
