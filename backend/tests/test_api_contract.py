@@ -32,25 +32,21 @@ def test_openapi_schema_contains_sprint_5_5_routes():
             assert method in paths[path], f"Método {method.upper()} no encontrado en {path}"
 
 
-def test_skeleton_routes_return_501():
+def test_skeleton_routes_return_expected_status():
     headers = {"X-Project-Id": "demo-reforma-del-agua"}
 
+    # Carril B: /accounts implementado
     r_post_accounts = client.post(
         "/accounts",
-        json={"platform": "youtube", "external_id": "UC12345", "is_owned": True},
+        json={"platform": "youtube", "external_id": "UC_contract_test", "is_owned": True},
         headers=headers,
     )
-    assert r_post_accounts.status_code == 501
+    assert r_post_accounts.status_code == 201
 
     r_get_accounts = client.get("/accounts", headers=headers)
-    assert r_get_accounts.status_code == 501
+    assert r_get_accounts.status_code == 200
 
-    r_snapshot = client.post("/accounts/1/snapshot", headers=headers)
-    assert r_snapshot.status_code == 501
-
-    r_growth = client.get("/accounts/1/growth", headers=headers)
-    assert r_growth.status_code == 501
-
+    # Carril D, E, F: esqueletos pendientes de sub-sprints siguientes
     r_oauth_start = client.get("/oauth/meta/start", headers=headers)
     assert r_oauth_start.status_code == 501
 
