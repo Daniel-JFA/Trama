@@ -1,0 +1,44 @@
+{
+  "kind": "youtube#commentThreadListResponse",
+  "etag": "comments_etag_123",
+  "items": [
+    {
+      "kind": "youtube#commentThread",
+      "id": "UgxK4W3K111",
+      "snippet": {
+        "videoId": "vid_sample_101",
+        "topLevelComment": {
+          "id": "UgxK4W3K111",
+          "snippet": {
+            "authorDisplayName": "DataAnalystPro",
+            "authorChannelId": {
+              "value": "UC_analyst_001"
+            },
+            "textDisplay": "Excelente explicación de cómo conectar DuckDB con FastAPI.",
+            "likeCount": 12,
+            "publishedAt": "2026-11-02T10:15:00Z"
+          }
+        }
+      }
+    },
+    {
+      "kind": "youtube#commentThread",
+      "id": "UgxK4W3K222",
+      "snippet": {
+        "videoId": "vid_sample_101",
+        "topLevelComment": {
+          "id": "UgxK4W3K222",
+          "snippet": {
+            "authorDisplayName": "NetworkExplorer",
+            "authorChannelId": {
+              "value": "UC_explorer_002"
+            },
+            "textDisplay": "¿Tienen soporte para grafos con más de 100k nodos?",
+            "likeCount": 5,
+            "publishedAt": "2026-11-03T14:22:00Z"
+          }
+        }
+      }
+    }
+  ]
+}
