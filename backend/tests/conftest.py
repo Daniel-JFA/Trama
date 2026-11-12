@@ -26,6 +26,8 @@ def setup_test_database(tmp_path_factory):
     os.environ.setdefault("TRAMA_TOKEN_KEY", generate_token_key())
     os.environ.setdefault("META_APP_ID", "dummy_meta_app_id_for_testing")
     os.environ.setdefault("META_APP_SECRET", "dummy_meta_app_secret_for_testing")
+    os.environ.setdefault("GOOGLE_OAUTH_CLIENT_ID", "dummy_google_client_id_for_testing")
+    os.environ.setdefault("GOOGLE_OAUTH_CLIENT_SECRET", "dummy_google_client_secret_for_testing")
     init_db()
     yield
 

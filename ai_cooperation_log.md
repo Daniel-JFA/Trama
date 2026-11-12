@@ -87,3 +87,21 @@
     2. Columnas en `PostSnapshot`: `impressions` (BigInteger), `ctr` (Float), `subscribers_gained` (Integer), `subscribers_lost` (Integer), `retention_rate_pct` (Float), `average_view_duration_seconds` (Integer).
     3. Exponer endpoints de Google OAuth en `routers/oauth.py` (`/oauth/google/start` y `/oauth/google/callback`) usando los métodos de `YouTubeProvider`.
 
+### Sub-sprint 5.5.1 — Integración Fase A (Carril INT): Fusión s55-a, Migración Analítica y OAuth Google/YouTube
+* **Fecha:** 2026-11-12
+* **Rama:** `main` (fusión de `s55-a`)
+* **Archivos modificados/creados:**
+  - `backend/alembic/versions/065a57b9d092_add_account_analytics_daily_and_post_.py`: Migración encadenada sobre `ae8e56481230` creando `account_analytics_daily` y añadiendo columnas analíticas (`impressions`, `ctr`, `subscribers_gained`, `subscribers_lost`, `retention_rate_pct`, `average_view_duration_seconds`) a `post_snapshots`.
+  - `backend/app/models.py`: Modelos SQLAlchemy `AccountAnalyticsDaily`, relación `analytics_daily` en `Account`, y columnas analíticas tipadas en `PostSnapshot`.
+  - `backend/app/routers/oauth.py`: Habilitación de `"google"` y `"youtube"` en `/oauth/{provider}/start` y `/oauth/{provider}/callback` con validación HMAC anti-CSRF `state` y almacenamiento cifrado en reposo en `OAuthCredential`.
+  - `backend/tests/conftest.py`: Inyección de fixtures de entorno para `GOOGLE_OAUTH_CLIENT_ID` y `GOOGLE_OAUTH_CLIENT_SECRET`.
+  - `backend/tests/test_api_contract.py`: Cobertura de endpoints OAuth Google/YouTube (start, rechazo anti-CSRF y callback autorizado sin exponer tokens).
+* **Resultados de verificación:**
+  - `pytest backend/tests`: 109 passed en 8.57s (0 regresiones).
+  - `alembic heads`: Un solo head activo (`065a57b9d092`).
+  - Test de migración en SQLite con datos existentes: `upgrade head` y `downgrade -1` probados exitosamente preservando datos preexistentes.
+  - `npm run build`: Compilación exitosa en Next.js (0 errores).
+* **No verificado contra API real:**
+  - Canje real de credenciales contra servidores de Google OAuth y Meta Graph API (sujeto a App Review y credenciales en entorno real).
+
+

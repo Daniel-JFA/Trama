@@ -1,6 +1,6 @@
 """
 routers/oauth.py — Endpoints para flujos de autenticación OAuth de cuentas propias.
-Carril D: Meta (Instagram/Facebook) y credenciales.
+Carril D & Carril A: Meta (Instagram/Facebook) y Google (YouTube) con credenciales cifradas.
 Sprint 5.5 — Seguimiento de Creadores, Crecimiento y Nichos.
 """
 
@@ -19,8 +19,11 @@ from ..oauth import (
     exchange_for_long_lived_token,
     store_oauth_credential,
 )
+from ..providers.youtube import YouTubeProvider
 
 router = APIRouter(prefix="/oauth", tags=["OAuth & Credenciales"])
+
+SUPPORTED_PROVIDERS = ("meta", "instagram", "facebook", "google", "youtube")
 
 
 @router.get(
@@ -35,19 +38,22 @@ def oauth_start(
 ):
     """
     Genera la URL de autorización con token 'state' anti-CSRF firmado criptográficamente.
-    Soporta: 'meta', 'instagram', 'facebook'.
+    Soporta: 'meta', 'instagram', 'facebook', 'google', 'youtube'.
     """
     prov = provider.lower()
-    if prov not in ("meta", "instagram", "facebook"):
+    if prov not in SUPPORTED_PROVIDERS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Proveedor OAuth '{provider}' no soportado. Disponibles: meta, instagram, facebook.",
+            detail=f"Proveedor OAuth '{provider}' no soportado. Disponibles: {', '.join(SUPPORTED_PROVIDERS)}.",
         )
 
     cb_uri = redirect_uri or f"http://localhost:8000/oauth/{prov}/callback"
 
     try:
-        auth_url = get_meta_auth_url(project_id=project["id"], redirect_uri=cb_uri)
+        if prov in ("google", "youtube"):
+            auth_url = YouTubeProvider.get_google_auth_url(project_id=project["id"], redirect_uri=cb_uri)
+        else:
+            auth_url = get_meta_auth_url(project_id=project["id"], redirect_uri=cb_uri)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -75,10 +81,16 @@ def oauth_callback(
     db: Session = Depends(get_db),
 ):
     """
-    Recibe el código de autorización, valida el 'state', obtiene el token de larga duración
-    y lo almacena estrictamente CIFRADO en reposo. Nunca retorna el token por la API.
+    Recibe el código de autorización, valida el 'state', obtiene los tokens de acceso
+    y los almacena estrictamente CIFRADOS en reposo. Nunca retorna el token por la API.
     """
     prov = provider.lower()
+    if prov not in SUPPORTED_PROVIDERS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Proveedor OAuth '{provider}' no soportado. Disponibles: {', '.join(SUPPORTED_PROVIDERS)}.",
+        )
+
     if error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -101,16 +113,65 @@ def oauth_callback(
     cb_uri = f"http://localhost:8000/oauth/{prov}/callback"
 
     try:
-        # 1. Obtener token de corta duración
+        if prov in ("google", "youtube"):
+            # Flujo Google OAuth
+            token_data = YouTubeProvider.exchange_code_for_tokens(code=code, redirect_uri=cb_uri)
+            access_token = token_data.get("access_token")
+            refresh_token = token_data.get("refresh_token")
+            expires_in = token_data.get("expires_in", 3600)
+            scopes = token_data.get("scope", "https://www.googleapis.com/auth/yt-analytics.readonly https://www.googleapis.com/auth/youtube.readonly")
+
+            # Intentar obtener información del canal propio o fallback determinista
+            channel_id = f"youtube_channel_{code[:8]}"
+            handle = "youtube_account"
+            display_name = "Canal Propio YouTube"
+            try:
+                yt_provider = YouTubeProvider(access_token=access_token)
+                acc_data = yt_provider.fetch_account("MINE")
+                channel_id = acc_data.external_id
+                handle = acc_data.handle
+                display_name = acc_data.display_name
+            except Exception:
+                pass
+
+            account = create_account(
+                project_id=project_id,
+                platform="youtube",
+                external_id=channel_id,
+                handle=handle,
+                display_name=display_name,
+                is_owned=True,
+                db=db,
+            )
+
+            store_oauth_credential(
+                account_id=account.id,
+                provider="youtube",
+                access_token=access_token,
+                refresh_token=refresh_token,
+                expires_in_seconds=expires_in,
+                scopes=scopes,
+                db=db,
+            )
+
+            return {
+                "status": "authorized",
+                "provider": prov,
+                "project_id": project_id,
+                "account_id": account.id,
+                "is_owned": True,
+                "expires_in_seconds": expires_in,
+                "message": "Token OAuth cifrado y guardado exitosamente en reposo.",
+            }
+
+        # Flujo Meta OAuth
         short_token_data = exchange_code_for_short_lived_token(code=code, redirect_uri=cb_uri)
         short_token = short_token_data.get("access_token")
 
-        # 2. Canjear por token de larga duración (~60 días)
         long_token_data = exchange_for_long_lived_token(short_lived_token=short_token)
         long_token = long_token_data.get("access_token", short_token)
-        expires_in = long_token_data.get("expires_in", 5184000)  # 60 días aprox.
+        expires_in = long_token_data.get("expires_in", 5184000)
 
-        # 3. Registrar cuenta propia vinculada si aún no existe
         account = create_account(
             project_id=project_id,
             platform="instagram" if prov == "instagram" else "facebook",
@@ -121,7 +182,6 @@ def oauth_callback(
             db=db,
         )
 
-        # 4. Guardar token cifrado
         store_oauth_credential(
             account_id=account.id,
             provider=prov,

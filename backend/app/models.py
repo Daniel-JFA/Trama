@@ -184,6 +184,7 @@ class Account(Base):
     project = relationship("ProjectModel", back_populates="accounts")
     snapshots = relationship("AccountSnapshot", back_populates="account", cascade="all, delete-orphan")
     post_snapshots = relationship("PostSnapshot", back_populates="account", cascade="all, delete-orphan")
+    analytics_daily = relationship("AccountAnalyticsDaily", back_populates="account", cascade="all, delete-orphan")
     credentials = relationship("OAuthCredential", back_populates="account", cascade="all, delete-orphan")
 
     __table_args__ = (
@@ -227,11 +228,45 @@ class PostSnapshot(Base):
     text = Column(Text, nullable=True)
     hashtags = Column(JSON, default=list)
 
+    # Métricas avanzadas de Analytics
+    impressions = Column(BigInteger, default=0, nullable=False)
+    ctr = Column(Float, nullable=True)
+    subscribers_gained = Column(Integer, default=0, nullable=False)
+    subscribers_lost = Column(Integer, default=0, nullable=False)
+    retention_rate_pct = Column(Float, nullable=True)
+    average_view_duration_seconds = Column(Integer, nullable=True)
+
     account = relationship("Account", back_populates="post_snapshots")
 
     __table_args__ = (
         Index("idx_post_snapshots_account_pub", "account_id", "published_at"),
         Index("idx_post_snapshots_acc_ext", "account_id", "external_post_id"),
+    )
+
+
+class AccountAnalyticsDaily(Base):
+    __tablename__ = "account_analytics_daily"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    account_id = Column(Integer, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False, index=True)
+    date = Column(String(32), nullable=False)
+    views = Column(BigInteger, default=0, nullable=False)
+    watch_time_minutes = Column(BigInteger, default=0, nullable=False)
+    average_view_duration_seconds = Column(Integer, default=0, nullable=False)
+    average_view_percentage = Column(Float, default=0.0, nullable=False)
+    subscribers_gained = Column(Integer, default=0, nullable=False)
+    subscribers_lost = Column(Integer, default=0, nullable=False)
+    net_subscribers = Column(Integer, default=0, nullable=False)
+    impressions = Column(BigInteger, default=0, nullable=False)
+    ctr = Column(Float, default=0.0, nullable=False)
+    traffic_sources = Column(JSON, default=list)
+    demographics = Column(JSON, default=list)
+
+    account = relationship("Account", back_populates="analytics_daily")
+
+    __table_args__ = (
+        UniqueConstraint("account_id", "date", name="uq_acc_analytics_daily_account_date"),
+        Index("idx_acc_analytics_daily_account_date", "account_id", "date"),
     )
 
 
@@ -253,5 +288,6 @@ class OAuthCredential(Base):
 AccountModel = Account
 AccountSnapshotModel = AccountSnapshot
 PostSnapshotModel = PostSnapshot
+AccountAnalyticsDailyModel = AccountAnalyticsDaily
 OAuthCredentialModel = OAuthCredential
 
