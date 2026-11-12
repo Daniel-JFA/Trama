@@ -66,3 +66,24 @@
   - `npm test`: 7 passed en 117ms.
   - `npm run build`: Compilación exitosa en Next.js.
   - `alembic heads`: Un solo head activo (`ae8e56481230`).
+
+### Sub-sprint 5.5.1 — Actualización Carril A: OAuth + YouTube Analytics API & Backfill Histórico
+* **Fecha:** 2026-11-12
+* **Rama:** `s55-a`
+* **Nicho objetivo:** Tecnología / Desarrollo de Software y AI (alineado al proyecto TRAMA)
+* **Archivos modificados/creados:**
+  - `backend/app/providers/youtube.py`: Añadido soporte para Google OAuth2 (`get_google_auth_url`, `exchange_code_for_tokens`, `refresh_google_token`), inicialización de cliente YouTube Analytics API v2 con credenciales OAuth, métodos analíticos (`fetch_channel_daily_metrics`, `fetch_video_analytics`, `fetch_audience_retention`, `fetch_traffic_sources`, `fetch_demographics`) y backfill histórico por bloques (`backfill_channel_history`). Dataclasses tipadas: `YouTubeDailyMetric`, `YouTubeVideoAnalytics`, `TrafficSourceItem`, `DemographicsItem`, `AudienceRetentionPoint`, `BackfillResult`.
+  - `backend/tests/fixtures/youtube/`: Nuevas fixtures JSON con especificación oficial de Google Discovery: `analytics_channel_daily.json`, `analytics_video_metrics.json`, `analytics_traffic_sources.json`, `analytics_demographics.json`, `analytics_audience_retention.json`, `oauth_token_response.json`.
+  - `backend/tests/test_youtube_provider.py`: 21 tests unitarios pasando al 100% sin red (+12 tests nuevos para OAuth, Analytics API y Backfill).
+* **Resultados de verificación:**
+  - `pytest backend/tests/test_youtube_provider.py`: 21 passed en 0.27s.
+  - `pytest backend/tests`: 108 passed en 8.45s (0 regresiones).
+  - `npm test --prefix frontend`: 7 passed en 212ms.
+* **No verificado contra API real:**
+  - Consultas en vivo contra los servidores de Google API (OAuth en navegador y llamadas de red a YouTube Analytics API v2), al no haber credenciales reales inyectadas en el entorno local durante los tests automatizados (mocked discovery).
+* **Petición al Integrador:**
+  - Nuevas columnas o tablas requeridas para no volcar métricas en `raw`:
+    1. Tabla `AccountAnalyticsDaily`: `account_id`, `date`, `views`, `watch_time_minutes`, `average_view_duration_seconds`, `average_view_percentage`, `subscribers_gained`, `subscribers_lost`, `net_subscribers`, `impressions`, `ctr`, `traffic_sources` (JSON), `demographics` (JSON).
+    2. Columnas en `PostSnapshot`: `impressions` (BigInteger), `ctr` (Float), `subscribers_gained` (Integer), `subscribers_lost` (Integer), `retention_rate_pct` (Float), `average_view_duration_seconds` (Integer).
+    3. Exponer endpoints de Google OAuth en `routers/oauth.py` (`/oauth/google/start` y `/oauth/google/callback`) usando los métodos de `YouTubeProvider`.
+
